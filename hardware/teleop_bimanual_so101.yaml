@@ -1,0 +1,29 @@
+# Leader and follower template for two SO-101 arms.
+# Leave ports null until the station is enumerated. Do not invent /dev paths.
+robot_type: bi_so_follower
+robot_id: bimanual_so101
+left_arm_port: null
+right_arm_port: null
+leader_type: bi_so_leader
+leader_id: bimanual_so101_leader
+leader_left_port: null
+leader_right_port: null
+cameras:
+  left_wrist:
+    feature_key: observation.images.left
+    index_or_path: null
+    width: 640
+    height: 480
+    fps: 30
+  right_wrist:
+    feature_key: observation.images.right
+    index_or_path: null
+    width: 640
+    height: 480
+    fps: 30
+  overhead:
+    feature_key: observation.images.top
+    index_or_path: null
+    width: 640
+    height: 480
+    fps: 30

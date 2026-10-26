@@ -1,0 +1,30 @@
+# Tiny student for CI. One KD step from a scripted teacher, then the latency
+# bench. The GPU config is the 50-150M model with the 30 Hz / 6 GB target.
+dataset_repo_id: humjie/bimanual-so101-fold-towel
+task_prompt: Fold towel
+teacher_kind: scripted
+teacher_checkpoint: null
+device: cpu
+seed: 0
+steps: 1
+batch_size: 2
+learning_rate: 0.001
+kd_weight: 1.0
+gt_weight: 0.0
+save_freq: 1
+resume: auto
+output_dir: outputs/distill/student_cpu
+student:
+  image_size: 16
+  patch_size: 8
+  dim_model: 32
+  n_heads: 4
+  n_layers: 1
+  dim_feedforward: 64
+  chunk_size: 4
+  dropout: 0.0
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top
+action_dim: 12

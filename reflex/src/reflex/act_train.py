@@ -28,6 +28,7 @@ from reflex.act_smoke import (
     train_smoke_steps,
 )
 from shared.contract import ACTION_DIM, CAMERA_FEATURE_KEYS
+from shared.splits import dataset_episodes_flag
 
 _WANDB_MODES = {"online", "offline", "disabled"}
 
@@ -85,6 +86,8 @@ class ActTrainConfig:
     resume: str = "auto"
     push_to_hub: bool = False
     use_amp: bool = True
+    episodes_file: Path | None = None
+    episodes_split: str = "train"
     wandb: WandbTrainConfig = field(default_factory=WandbTrainConfig)
     policy: ActPolicyTrainConfig = field(default_factory=ActPolicyTrainConfig)
     cameras: tuple[str, ...] = CAMERA_FEATURE_KEYS
@@ -119,6 +122,8 @@ class ActTrainConfig:
             raise ValueError(f"cameras must be {list(CAMERA_FEATURE_KEYS)}")
         if self.image_height < 1 or self.image_width < 1:
             raise ValueError("image_height and image_width must be positive")
+        if self.episodes_split not in {"train", "held_out"}:
+            raise ValueError("episodes_split must be train or held_out")
         if self.wandb.mode is not None and self.wandb.mode not in _WANDB_MODES:
             raise ValueError(f"wandb.mode must be one of {sorted(_WANDB_MODES)}")
         policy = self.policy
@@ -195,6 +200,10 @@ def act_train_config_from_mapping(data: dict[str, object]) -> ActTrainConfig:
         resume=resume,
         push_to_hub=_bool(data, "push_to_hub", defaults.push_to_hub),
         use_amp=_bool(data, "use_amp", defaults.use_amp),
+        episodes_file=_optional_path(
+            data.get("episodes_file", defaults.episodes_file), "episodes_file"
+        ),
+        episodes_split=_episodes_split(data.get("episodes_split", defaults.episodes_split)),
         wandb=_wandb(data.get("wandb", {})),
         policy=_policy(data.get("policy", {})),
         cameras=cameras,
@@ -261,6 +270,14 @@ def lerobot_train_argv(config: ActTrainConfig, *, resume_config: Path | None = N
         args.append(_flag("dataset.root", config.dataset_root))
     if config.revision:
         args.append(_flag("dataset.revision", config.revision))
+    if config.episodes_file is not None:
+        args.append(
+            dataset_episodes_flag(
+                config.episodes_file,
+                dataset_repo_id=config.dataset_repo_id,
+                which=config.episodes_split,
+            )
+        )
     args.extend(_wandb_flags(config))
     return args
 
@@ -536,6 +553,20 @@ def _resume_value(value: object) -> str:
     if isinstance(value, str) and value in {"auto", "true", "false"}:
         return value
     raise ValueError("resume must be auto, true, or false")
+
+
+def _optional_path(value: object, name: str) -> Path | None:
+    if value is None:
+        return None
+    if isinstance(value, str | Path) and str(value):
+        return Path(value)
+    raise ValueError(f"{name} must be a path or null")
+
+
+def _episodes_split(value: object) -> str:
+    if isinstance(value, str) and value in {"train", "held_out"}:
+        return value
+    raise ValueError("episodes_split must be train or held_out")
 
 
 def _optional_str(value: object, name: str) -> str | None:

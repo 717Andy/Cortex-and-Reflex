@@ -1,0 +1,9 @@
+# Recording template paired with hardware/teleop_bimanual_so101.yaml.
+# single_task is the language prompt stored on each episode.
+repo_id: local/bimanual-so101-fold-towel
+single_task: Fold towel
+fps: 30
+num_episodes: 50
+image_height: 480
+image_width: 640
+teleop_config: hardware/teleop_bimanual_so101.yaml

@@ -137,3 +137,102 @@ class EpisodeAnnotation:
         if not self.phases:
             return 0.0
         return min(span.confidence for span in self.phases)
+
+    @property
+    def mean_phase_confidence(self) -> float:
+        if not self.phases:
+            return 0.0
+        return sum(span.confidence for span in self.phases) / len(self.phases)
+
+
+def annotation_from_mapping(data: dict[str, object]) -> EpisodeAnnotation:
+    """Rebuild an annotation from the JSON object ``annotation_to_dict`` writes."""
+    episode_index = data.get("episode_index")
+    labeler = data.get("labeler")
+    if isinstance(episode_index, bool) or not isinstance(episode_index, int):
+        raise ValueError("episode_index must be an int")
+    if not isinstance(labeler, str) or not labeler:
+        raise ValueError("labeler must be a non-empty string")
+    success = data.get("success")
+    if success is not None and not isinstance(success, bool):
+        raise ValueError("success must be a bool or null")
+    notes = data.get("quality_notes", "")
+    if not isinstance(notes, str):
+        raise ValueError("quality_notes must be a string")
+    return EpisodeAnnotation(
+        episode_index=episode_index,
+        labeler=labeler,
+        phases=_phase_spans(data.get("phases", ())),
+        failures=_failure_events(data.get("failures", ())),
+        segments=_segment_spans(data.get("segments", ())),
+        success=success,
+        quality_notes=notes,
+    )
+
+
+def _phase_spans(value: object) -> tuple[PhaseSpan, ...]:
+    return tuple(
+        PhaseSpan(
+            phase=FoldPhase(str(item["phase"])),
+            start_frame=_span_int(item, "start_frame"),
+            end_frame=_span_int(item, "end_frame"),
+            confidence=_span_float(item, "confidence"),
+        )
+        for item in _span_list(value, "phases")
+    )
+
+
+def _segment_spans(value: object) -> tuple[SegmentSpan, ...]:
+    return tuple(
+        SegmentSpan(
+            phase=SubTask(str(item["phase"])),
+            start_frame=_span_int(item, "start_frame"),
+            end_frame=_span_int(item, "end_frame"),
+            confidence=_span_float(item, "confidence"),
+        )
+        for item in _span_list(value, "segments")
+    )
+
+
+def _failure_events(value: object) -> tuple[FailureEvent, ...]:
+    events: list[FailureEvent] = []
+    for item in _span_list(value, "failures"):
+        detail = item.get("detail", "")
+        if not isinstance(detail, str):
+            raise ValueError("failure detail must be a string")
+        events.append(
+            FailureEvent(
+                mode=FailureMode(str(item["mode"])),
+                start_frame=_span_int(item, "start_frame"),
+                end_frame=_span_int(item, "end_frame"),
+                detail=detail,
+            )
+        )
+    return tuple(events)
+
+
+def _span_list(value: object, name: str) -> list[dict[str, object]]:
+    if value is None:
+        return []
+    if not isinstance(value, list | tuple):
+        raise ValueError(f"{name} must be a list")
+    items: list[dict[str, object]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError(f"each {name} entry must be an object")
+        items.append(item)
+    return items
+
+
+def _span_int(item: dict[str, object], name: str) -> int:
+    value = item.get(name)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an int")
+    return value
+
+
+def _span_float(item: dict[str, object], name: str) -> float:
+    value = item.get(name)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be a number")
+    return float(value)

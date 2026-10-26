@@ -1,0 +1,9 @@
+# Rank towel episodes by VLM label quality and write a train/held-out split.
+# `reflex.cli train` reads train_episodes as --dataset.episodes when
+# episodes_file points at the JSON this command writes.
+strategy: quality
+seed: 0
+train_fraction: 0.8
+min_confidence: 0.0
+require_success: false
+dataset_repo_id: humjie/bimanual-so101-fold-towel
