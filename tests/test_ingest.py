@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import pytest
-from tests.support import write_local_dataset
 
 from cortex.ingest import load_bimanual_dataset
 from shared.contract import PUBLIC_TOWEL_REPO_ID, DatasetContractError
+from tests.support import write_local_dataset
 
 
 def test_local_dataset_round_trip(tmp_path: Path) -> None:
