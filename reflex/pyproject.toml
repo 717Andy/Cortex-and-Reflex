@@ -1,0 +1,25 @@
+[project]
+name = "reflex"
+version = "0.1.0"
+description = "Reflex policies: LeRobot training and eval entry points for bimanual folding."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "shared",
+    "lerobot>=0.6.1,<0.7",
+    "pyyaml>=6,<7",
+    "torch>=2.7,<2.12",
+    "torchvision>=0.22,<0.27",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+shared = { workspace = true }
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reflex"]

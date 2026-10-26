@@ -1,0 +1,15 @@
+# Tiny ACT step used by `python -m reflex.cli act-smoke`.
+# Image size and width stay small so the step runs on CPU in CI.
+steps: 1
+batch_size: 2
+image_height: 64
+image_width: 64
+chunk_size: 4
+dim_model: 64
+n_heads: 4
+dim_feedforward: 128
+n_encoder_layers: 1
+n_decoder_layers: 1
+use_vae: false
+seed: 0
+device: cpu
