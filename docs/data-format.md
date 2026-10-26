@@ -63,7 +63,9 @@ that does not mention `so` is a warning.
 
 Labels are not columns in the LeRobot file yet. Cortex attaches them in memory:
 
-- Phases: `grasp_corner`, `flatten`, `fold`, `release`
+- Coarse phases, used by the stub labeler and the dashboard: `grasp_corner`, `flatten`, `fold`, `release`
+- VLM segments: `grasp`, `flatten`, `fold1`, `fold2`, `release` (mapped onto the coarse phases; `fold1` and `fold2` both count as `fold`)
+- VLM judgment: `success` and a `quality_notes` string
 - Failures: `missed_grasp`, `crumpled_corner`, `misaligned_fold`, `double_layer_grasp`, `arm_collision`, `timeout`, `drop`, `missed_box`
 
 `arm_collision` and `timeout` are separate events. `drop` and `missed_box` are separate events.

@@ -1,0 +1,12 @@
+# Defaults for `python -m cortex.cli label`.
+# hf loads a local transformers model. openai reads CORTEX_VLM_BASE_URL,
+# CORTEX_VLM_API_KEY, and CORTEX_VLM_MODEL (OPENAI_* is the fallback).
+# fake writes schema-valid placeholder labels and does not download a model.
+backend: hf
+model: HuggingFaceTB/SmolVLM-256M-Instruct
+retries: 2
+uncertain_below: 0.5
+max_new_tokens: 768
+response_cache: outputs/vlm_cache
+device: cpu
+timeout_s: 120

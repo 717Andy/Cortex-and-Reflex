@@ -1,0 +1,53 @@
+# ACT on humjie/bimanual-so101-fold-towel via LeRobot 0.6.
+# 12-DoF state/action and the three contract cameras. LeRobot reads the image
+# size from the dataset (480x640); image_height/width here record that size.
+# Checkpoints every save_freq steps so a spot instance can resume.
+# On a 24 GB 4090, drop batch_size to 2 if the run runs out of memory.
+dataset_repo_id: humjie/bimanual-so101-fold-towel
+dataset_root: null
+revision: null
+job_name: act_bimanual_so101_towel
+output_dir: outputs/train/act_towel
+device: cuda
+dry_run: false
+seed: 1000
+batch_size: 8
+steps: 100000
+num_workers: 4
+log_freq: 200
+save_freq: 2000
+save_checkpoint: true
+resume: auto
+push_to_hub: false
+use_amp: true
+wandb:
+  enable: false
+  project: cortex-reflex
+  entity: null
+  mode: null
+  run_id: null
+policy:
+  chunk_size: 100
+  n_action_steps: 100
+  dim_model: 512
+  n_heads: 8
+  dim_feedforward: 3200
+  n_encoder_layers: 4
+  n_decoder_layers: 1
+  use_vae: true
+  latent_dim: 32
+  n_vae_encoder_layers: 4
+  dropout: 0.1
+  kl_weight: 10.0
+  vision_backbone: resnet18
+  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  optimizer_lr: 1.0e-5
+  optimizer_weight_decay: 1.0e-4
+  optimizer_lr_backbone: 1.0e-5
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top
+action_dim: 12
+image_height: 480
+image_width: 640

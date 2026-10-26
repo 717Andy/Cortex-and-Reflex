@@ -36,7 +36,10 @@ from shared.labels import (
 class FoldLabeler(Protocol):
     """Anything that turns an episode into phases and failure events."""
 
-    name: str
+    @property
+    def name(self) -> str:
+        """Short name stored on each annotation."""
+        ...
 
     def label(self, episode: EpisodeRecord) -> EpisodeAnnotation:
         """Label one episode."""

@@ -18,12 +18,17 @@ class LabelingRun:
     dashboard: Dashboard
 
 
-def run_labeling(source: EpisodeSource, labeler: FoldLabeler) -> LabelingRun:
+def run_labeling(
+    source: EpisodeSource,
+    labeler: FoldLabeler,
+    *,
+    uncertain_below: float = 0.5,
+) -> LabelingRun:
     queue = DataSelectionQueue()
     annotations: list[EpisodeAnnotation] = []
     for index in range(len(source)):
         annotation = labeler.label(source.load_episode(index))
         annotations.append(annotation)
-        enqueue_annotation(queue, annotation)
+        enqueue_annotation(queue, annotation, uncertain_below=uncertain_below)
     dashboard = build_dashboard(annotations, queue)
     return LabelingRun(annotations=tuple(annotations), queue=queue, dashboard=dashboard)

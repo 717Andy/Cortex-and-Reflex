@@ -18,6 +18,7 @@ def write_local_dataset(
     orphan: bool = False,
     fps: int = 30,
     task: str = "Fold the towel",
+    video_files: bool = False,
 ) -> None:
     frames = sum(lengths)
     info = make_dataset_info(episodes=len(lengths), frames=frames, fps=fps, tasks=1)
@@ -33,10 +34,15 @@ def write_local_dataset(
     rows: list[dict[str, object]] = []
     cursor = 0
     for index, length in enumerate(lengths):
-        rows.append(_episode_row(index, length, cursor, fps, task))
+        rows.append(_episode_row(index, length, cursor, fps, task, video_files=video_files))
         cursor += length
+    if video_files:
+        for camera in CAMERA_FEATURE_KEYS:
+            video = root / "videos" / camera / "chunk-000" / "file-000.mp4"
+            video.parent.mkdir(parents=True, exist_ok=True)
+            video.write_bytes(b"not-a-real-video")
     if orphan:
-        rows.append(_episode_row(0, 3, 10_000, fps, task))
+        rows.append(_episode_row(0, 3, 10_000, fps, task, video_files=video_files))
     _write_episodes(episode_dir / "file-000.parquet", rows)
 
 
@@ -54,7 +60,15 @@ def _stats() -> dict[str, dict[str, list[float]]]:
     return stats
 
 
-def _episode_row(index: int, length: int, start: int, fps: int, task: str) -> dict[str, object]:
+def _episode_row(
+    index: int,
+    length: int,
+    start: int,
+    fps: int,
+    task: str,
+    *,
+    video_files: bool = False,
+) -> dict[str, object]:
     duration = length / fps
     row: dict[str, object] = {
         "episode_index": index,
@@ -66,6 +80,9 @@ def _episode_row(index: int, length: int, start: int, fps: int, task: str) -> di
     for camera in CAMERA_FEATURE_KEYS:
         row[f"videos/{camera}/from_timestamp"] = 0.0
         row[f"videos/{camera}/to_timestamp"] = duration
+        if video_files:
+            row[f"videos/{camera}/chunk_index"] = 0
+            row[f"videos/{camera}/file_index"] = 0
     return row
 
 
@@ -86,4 +103,8 @@ def _write_episodes(path: Path, rows: list[dict[str, object]]) -> None:
         columns[f"videos/{camera}/to_timestamp"] = pa.array(
             [row[f"videos/{camera}/to_timestamp"] for row in rows], type=pa.float64()
         )
+        for suffix in ("chunk_index", "file_index"):
+            key = f"videos/{camera}/{suffix}"
+            if key in rows[0]:
+                columns[key] = pa.array([row[key] for row in rows], type=pa.int64())
     pq.write_table(pa.table(columns), path)

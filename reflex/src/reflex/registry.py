@@ -26,7 +26,7 @@ POLICIES: dict[str, PolicyEntry] = {
         status=PolicyStatus.READY,
         lerobot_type="act",
         extra=None,
-        notes="Action Chunking Transformer. CPU smoke test trains one tiny step.",
+        notes="Action Chunking Transformer. CPU smoke test, plus reflex.cli train.",
     ),
     "diffusion": PolicyEntry(
         name="diffusion",

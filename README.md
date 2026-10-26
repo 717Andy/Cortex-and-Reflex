@@ -56,9 +56,9 @@ flowchart LR
 | Path | Role |
 | --- | --- |
 | `shared/` | Joint names, camera keys, episode records, label types, sim/teleop/eval protocols |
-| `cortex/` | Metadata ingest, stub labeler, VLM interface, review queue, text dashboard |
-| `reflex/` | Policy registry and the ACT CPU smoke entry point |
-| `configs/` | Dataset repo, stub-miner thresholds, ACT smoke hyperparameters |
+| `cortex/` | Metadata ingest, stub labeler, VLM backends, review queue, text dashboard |
+| `reflex/` | Policy registry, ACT CPU smoke test, and the ACT training launcher |
+| `configs/` | Dataset repo, labeler settings, ACT smoke and train hyperparameters |
 | `docs/` | Episode format |
 | `hardware/` | Station notes for the November bring-up |
 | `infra/` | What CI runs without a GPU |
@@ -116,27 +116,102 @@ uv run python -m reflex.cli act-smoke --steps 1
 uv run python -m reflex.cli policies
 ```
 
+Label a few towel episodes with the placeholder backend (no model download):
+
+```bash
+uv run python -m cortex.cli label \
+  --dataset humjie/bimanual-so101-fold-towel \
+  --limit 2 \
+  --backend fake
+```
+
 ## Labeling and policies
 
 `StubLabeler` cuts each episode into four equal phases and applies kinematic
 rules (gripper motion, wrist oscillation, left/right lift agreement, action
 spikes, episode length). Phase confidence stays at 0.25, so every stub label
-lands on the review queue. `VlmLabeler` builds the prompt, parses the JSON
-response into the same `EpisodeAnnotation`, and leaves `complete()` for a future
-client. Swap the labeler in `run_labeling` without changing the queue or dashboard.
+lands on the review queue. `VlmLabeler.complete()` is the backend hook.
+`BackendVlmLabeler` validates the reply, retries schema failures, and caches
+accepted JSON. Swap the labeler in `run_labeling` without changing the queue or
+dashboard.
+
+A VLM label is segments `grasp`, `flatten`, `fold1`, `fold2`, and `release`,
+plus `success` and `quality_notes`. Segments tile the episode. Their confidence
+is copied onto the coarse phases (`grasp` → `grasp_corner`, `fold1` and `fold2`
+→ `fold`), so a minimum under 0.5 still enters the review queue as
+`uncertain_phase`. `success: false` is queued as a failure. The checked-in
+command is:
+
+```bash
+# Local SmolVLM or Qwen2.5-VL. transformers is not installed in CI.
+uv pip install 'transformers>=4.51'
+uv run python -m cortex.cli label \
+  --dataset humjie/bimanual-so101-fold-towel \
+  --limit 2 \
+  --backend hf \
+  --model HuggingFaceTB/SmolVLM-256M-Instruct
+
+# Any OpenAI-compatible chat endpoint. OPENAI_BASE_URL / OPENAI_API_KEY /
+# OPENAI_MODEL are accepted when the CORTEX_VLM_* variables are unset.
+export CORTEX_VLM_BASE_URL=https://api.openai.com/v1
+export CORTEX_VLM_API_KEY=your-key
+export CORTEX_VLM_MODEL=gpt-4o-mini
+uv run python -m cortex.cli label --limit 2 --backend openai
+```
+
+`--download-videos` fetches the mp4 shards before labeling. Without it, only
+`meta/` is read and the prompt carries video refs. `--root` points at a dataset
+directory that is already on disk. Replies are cached under `outputs/vlm_cache`.
+Real-model tests are marked `slow` and skip unless `CORTEX_RUN_SLOW_VLM=1`.
 
 `reflex.registry` lists ACT (ready), Diffusion Policy, SmolVLA, and pi0.5
 (planned). The smoke test builds `ACTPolicy` from LeRobot 0.6.1 with
 `pretrained_backbone_weights=None`, 64×64 images, and a 64-wide transformer, then
 takes one optimizer step and calls `select_action`.
 
+## Train ACT on a rented GPU
+
+`configs/policies/act_towel_gpu.yaml` trains LeRobot 0.6 ACT on
+`humjie/bimanual-so101-fold-towel`: 12-DoF actions and state, cameras
+`observation.images.left`, `observation.images.right`, and `observation.images.top`.
+Checkpoints go to `outputs/train/act_towel` every 2000 steps, which is enough to
+restart a spot instance. W&B is off unless `wandb.enable` is true or you pass
+`--wandb`.
+
+The workspace lockfile pins CPU torch so CI stays small. On an A100, L40S, or
+RTX 4090, install a CUDA torch build and the LeRobot training extra, then launch:
+
+```bash
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+uv pip install 'lerobot[training]'
+uv run python -m reflex.cli train --config configs/policies/act_towel_gpu.yaml
+```
+
+Use the CUDA index that matches the driver if `cu128` does not. Re-run that
+command after a preemption. When `outputs/train/act_towel/checkpoints/last`
+exists, the launcher passes LeRobot `--resume=true` and that checkpoint's
+`train_config.json`. On a 24 GB 4090, set `batch_size` to 2 if the run runs out
+of memory.
+
+Check the wiring on CPU before paying for the GPU. This does not download the
+dataset:
+
+```bash
+uv run python -m reflex.cli train \
+  --config configs/policies/act_towel_cpu_dry_run.yaml \
+  --output outputs/train/act_towel_cpu_dry_run
+```
+
+The dry-run takes one synthetic step with the same three cameras and a 12-DoF
+action, writes `checkpoints/last`, and resumes when you launch it again.
+
 ## Roadmap
 
 1. **This checkout.** Monorepo, v3 schema, Hub metadata loader, stub labeler plus
    VLM interface, selection queue, text dashboard, ACT CPU smoke test, CI.
-2. **Before the arms arrive.** Attach a VLM client to `VlmLabeler.complete`.
-   Review queued episodes against the public towel videos. Add LeRobot
-   `delta_timestamps` training configs for ACT on a GPU machine. Keep Diffusion
+2. **Before the arms arrive.** VLM clients and the ACT GPU launcher are in this
+   checkout. Review queued episodes against the public towel videos on a machine
+   with the videos downloaded. Run the ACT config on a rented GPU. Keep Diffusion
    Policy, SmolVLA, and pi0.5 behind their extras until that machine exists.
 3. **Mid-November station.** Two SO-101 followers, two leaders, three cameras.
    Implement `TeleopSession`, record towel episodes, and run `cortex ingest --root`

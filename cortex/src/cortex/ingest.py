@@ -8,7 +8,7 @@ cameras, the task list, and that episode rows reconstruct ``total_frames``.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pyarrow as pa
@@ -43,6 +43,9 @@ class EpisodeMeta:
     tasks: tuple[str, ...]
     source: str
     video_duration_s: dict[str, float]
+    video_from_s: dict[str, float] = field(default_factory=dict)
+    video_chunk_index: dict[str, int] = field(default_factory=dict)
+    video_file_index: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -175,7 +178,7 @@ def _read_episode_rows(episodes_dir: Path, report: ValidationReport) -> list[Epi
     if not episodes_dir.is_dir():
         return []
     rows: list[EpisodeMeta] = []
-    columns = [
+    required = [
         "episode_index",
         "length",
         "dataset_from_index",
@@ -183,11 +186,24 @@ def _read_episode_rows(episodes_dir: Path, report: ValidationReport) -> list[Epi
         "tasks",
     ]
     for camera in CAMERA_FEATURE_KEYS:
-        columns.append(f"videos/{camera}/from_timestamp")
-        columns.append(f"videos/{camera}/to_timestamp")
+        required.append(f"videos/{camera}/from_timestamp")
+        required.append(f"videos/{camera}/to_timestamp")
+    optional: list[str] = []
+    for camera in CAMERA_FEATURE_KEYS:
+        optional.append(f"videos/{camera}/chunk_index")
+        optional.append(f"videos/{camera}/file_index")
     for path in sorted(episodes_dir.glob("**/*.parquet")):
+        schema_names = set(pq.read_schema(path).names)
+        missing = [column for column in required if column not in schema_names]
+        if missing:
+            report.error(
+                "episode_columns",
+                f"{path.name} is missing episode columns: {', '.join(missing)}",
+            )
+            continue
+        present_optional = [column for column in optional if column in schema_names]
         try:
-            table = pq.read_table(path, columns=columns)
+            table = pq.read_table(path, columns=[*required, *present_optional])
         except (OSError, pa.ArrowInvalid) as exc:
             report.error("episode_columns", f"{path.name} is missing episode columns: {exc}")
             continue
@@ -200,6 +216,25 @@ def _read_episode_rows(episodes_dir: Path, report: ValidationReport) -> list[Epi
                 - float(data[f"videos/{camera}/from_timestamp"][row_index])
                 for camera in CAMERA_FEATURE_KEYS
             }
+            from_s = {
+                camera: float(data[f"videos/{camera}/from_timestamp"][row_index])
+                for camera in CAMERA_FEATURE_KEYS
+            }
+            chunk_index: dict[str, int] = {}
+            file_index: dict[str, int] = {}
+            for camera in CAMERA_FEATURE_KEYS:
+                chunk_column = f"videos/{camera}/chunk_index"
+                file_column = f"videos/{camera}/file_index"
+                chunk = (
+                    _optional_int(data[chunk_column][row_index]) if chunk_column in data else None
+                )
+                file_id = (
+                    _optional_int(data[file_column][row_index]) if file_column in data else None
+                )
+                if chunk is not None:
+                    chunk_index[camera] = chunk
+                if file_id is not None:
+                    file_index[camera] = file_id
             rows.append(
                 EpisodeMeta(
                     episode_index=int(data["episode_index"][row_index]),
@@ -209,9 +244,22 @@ def _read_episode_rows(episodes_dir: Path, report: ValidationReport) -> list[Epi
                     tasks=task_values,
                     source=str(path.relative_to(episodes_dir)),
                     video_duration_s=durations,
+                    video_from_s=from_s,
+                    video_chunk_index=chunk_index,
+                    video_file_index=file_index,
                 )
             )
     return rows
+
+
+def _optional_int(value: object) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float | str):
+        return int(value)
+    return None
 
 
 def _select_canonical(
