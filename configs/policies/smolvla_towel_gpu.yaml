@@ -1,0 +1,62 @@
+# Full fine-tune of lerobot/smolvla_base on the bimanual towel contract.
+# --policy.pretrained_path loads weights only, so camera keys come from the
+# dataset (observation.images.left/right/top) instead of the base checkpoint.
+# The public dataset task string is "Fold towel", which SmolVLA tokenizes.
+# freeze_vision_encoder and train_expert_only stay false: the whole model trains.
+# Checkpoints every save_freq steps. Re-run the same command after a preemption.
+policy_type: smolvla
+dataset_repo_id: humjie/bimanual-so101-fold-towel
+dataset_root: null
+revision: null
+task_prompt: Fold towel
+job_name: smolvla_bimanual_so101_towel
+output_dir: outputs/train/smolvla_towel
+device: cuda
+dry_run: false
+seed: 1000
+batch_size: 8
+steps: 100000
+num_workers: 4
+log_freq: 200
+save_freq: 2000
+save_checkpoint: true
+resume: auto
+push_to_hub: false
+episodes_file: null
+episodes_split: train
+wandb:
+  enable: false
+  project: cortex-reflex
+  entity: null
+  mode: null
+  run_id: null
+policy:
+  pretrained_path: lerobot/smolvla_base
+  freeze_vision_encoder: false
+  train_expert_only: false
+  train_state_proj: true
+  load_vlm_weights: true
+  chunk_size: 50
+  n_action_steps: 50
+  empty_cameras: 0
+  num_steps: 10
+  num_inference_steps: 10
+  pad_language_to: max_length
+  prefix_length: 0
+  num_expert_layers: 0
+  optimizer_lr: 0.0001
+  optimizer_weight_decay: 1.0e-10
+  scheduler_warmup_steps: 1000
+  scheduler_decay_steps: 30000
+  scheduler_decay_lr: 2.5e-6
+  dtype: bfloat16
+  gradient_checkpointing: true
+  paligemma_variant: gemma_2b
+  action_expert_variant: gemma_300m
+  compile_model: false
+  use_amp: true
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top
+action_dim: 12

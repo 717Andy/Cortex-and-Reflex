@@ -1,4 +1,4 @@
-"""Policy families this stack will train. Only ACT has a CPU smoke path today."""
+"""Policy families this stack will train."""
 
 from __future__ import annotations
 
@@ -37,17 +37,24 @@ POLICIES: dict[str, PolicyEntry] = {
     ),
     "smolvla": PolicyEntry(
         name="smolvla",
-        status=PolicyStatus.PLANNED,
+        status=PolicyStatus.READY,
         lerobot_type="smolvla",
         extra="smolvla",
-        notes="SmolVLA. Needs the lerobot smolvla extra.",
+        notes="Full fine-tune config. CPU dry-run skips SmolVLM weights.",
     ),
     "pi0.5": PolicyEntry(
         name="pi0.5",
-        status=PolicyStatus.PLANNED,
+        status=PolicyStatus.READY,
         lerobot_type="pi05",
         extra="pi",
-        notes="pi0.5. A later stage distills this into a small student policy.",
+        notes="Full fine-tune config. CPU dry-run skips PaliGemma weights. GPU needs lerobot[pi].",
+    ),
+    "student": PolicyEntry(
+        name="student",
+        status=PolicyStatus.READY,
+        lerobot_type="student",
+        extra=None,
+        notes="Distillation student. GPU config is 50-150M params. CPU bench is tiny.",
     ),
 }
 

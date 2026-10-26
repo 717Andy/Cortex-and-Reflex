@@ -11,6 +11,14 @@ from typing import cast
 
 import yaml
 
+from cortex.curation import (
+    CurationConfig,
+    curate,
+    curation_config_from_mapping,
+    load_annotations,
+    load_reward_scores,
+    write_split,
+)
 from cortex.dashboard import render_dashboard
 from cortex.dataset_episodes import records_from_dataset
 from cortex.ingest import load_bimanual_dataset
@@ -67,6 +75,21 @@ def main(argv: list[str] | None = None) -> int:
         help="also download video shards before labeling",
     )
 
+    curate_cmd = sub.add_parser(
+        "curate",
+        help="select a train/held-out split from labels, versus a random baseline",
+    )
+    curate_cmd.add_argument("--annotations", type=Path, required=True)
+    curate_cmd.add_argument("--output", type=Path, required=True)
+    curate_cmd.add_argument("--config", type=Path, default=None)
+    curate_cmd.add_argument("--strategy", choices=("quality", "diversity", "reward", "random"))
+    curate_cmd.add_argument("--reward-scores", type=Path, default=None)
+    curate_cmd.add_argument("--seed", type=int, default=None)
+    curate_cmd.add_argument("--train-fraction", type=float, default=None)
+    curate_cmd.add_argument("--dataset", default=None)
+    curate_cmd.add_argument("--min-confidence", type=float, default=None)
+    curate_cmd.add_argument("--require-success", action="store_true")
+
     args = parser.parse_args(argv)
     if args.command == "ingest":
         repo = args.repo or _dataset_repo()
@@ -75,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
         return _label_demo()
     if args.command == "label":
         return _label(args)
+    if args.command == "curate":
+        return _curate(args)
     parser.error(f"unknown command {args.command}")
     return 2
 
@@ -190,6 +215,57 @@ def _label(args: argparse.Namespace) -> int:
         print(f"queue episode {item.episode_index} {item.reason.value} {item.detail}")
     print(dashboard)
     return 0
+
+
+def _curate(args: argparse.Namespace) -> int:
+    try:
+        loaded = _load_curation_config(args.config)
+        config = CurationConfig(
+            strategy=loaded.strategy if args.strategy is None else str(args.strategy),
+            seed=loaded.seed if args.seed is None else args.seed,
+            train_fraction=(
+                loaded.train_fraction if args.train_fraction is None else args.train_fraction
+            ),
+            min_confidence=(
+                loaded.min_confidence if args.min_confidence is None else args.min_confidence
+            ),
+            require_success=loaded.require_success or bool(args.require_success),
+            dataset_repo_id=args.dataset or loaded.dataset_repo_id,
+        )
+        annotations = load_annotations(args.annotations)
+        rewards = None if args.reward_scores is None else load_reward_scores(args.reward_scores)
+        split = curate(annotations, config, rewards)
+        write_split(split, args.output)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    comparison = split.comparison
+    print(
+        f"curated {config.strategy}: train={list(split.train_episodes)} "
+        f"held_out={list(split.held_out_episodes)} "
+        f"quality={comparison.selected_mean_quality:.3f} "
+        f"random_quality={comparison.random_mean_quality:.3f} "
+        f"overlap={comparison.train_overlap_with_random:.3f}"
+    )
+    print(f"wrote {args.output}")
+    return 0
+
+
+def _load_curation_config(path: Path | None) -> CurationConfig:
+    if path is None:
+        root = _repo_root()
+        if root is None:
+            return CurationConfig()
+        path = root / "configs" / "curation" / "quality.yaml"
+        if not path.is_file():
+            return CurationConfig()
+    loaded = yaml.safe_load(path.read_text())
+    if not isinstance(loaded, dict):
+        raise SystemExit(f"{path} must be a mapping")
+    try:
+        return curation_config_from_mapping(loaded)
+    except ValueError as exc:
+        raise SystemExit(f"{path}: {exc}") from exc
 
 
 def _label_model(backend: str, cli_model: str | None, settings: VlmSettings) -> str | None:

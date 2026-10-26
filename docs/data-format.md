@@ -70,6 +70,28 @@ Labels are not columns in the LeRobot file yet. Cortex attaches them in memory:
 
 `arm_collision` and `timeout` are separate events. `drop` and `missed_box` are separate events.
 
+## Reward targets
+
+The fold-quality model reads those labels as frame targets. A successful episode
+starts at 1 for both quality and success. A phase span replaces quality with
+that span's confidence. A failure span sets both targets to 0 on the frames it
+covers. The episode target is the annotation's `success` bit. The head reports
+frame quality, frame success, and a mean-pooled episode success logit.
+
+PNG frames for a real run live at
+`{images_dir}/{episode_index}/{camera_key}/{frame:06d}.png`, with the three
+camera keys above.
+
+## Curation splits
+
+`cortex.cli curate` writes version 1 JSON. `train_episodes` is the list a fresh
+`reflex.cli train` launch passes as `--dataset.episodes` when `episodes_file`
+points at the file and `episodes_split` is `train`. `held_out_episodes` is the
+complement. `comparison` records the selected subset against a same-size random
+baseline (mean label quality, mean reward when scores were provided, and overlap).
+Resume launches do not append `--dataset.episodes`; they reuse the checkpoint's
+`train_config.json`.
+
 ## Public dataset
 
 `humjie/bimanual-so101-fold-towel` (120 episodes, 21,717 frames, task "Fold towel").

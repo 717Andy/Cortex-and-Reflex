@@ -1,0 +1,20 @@
+# Held-out action MSE for ACT, SmolVLA, and pi0.5, plus the reward model.
+# The checked-in paths are the GPU run directories. CI builds mock checkpoints
+# in a temp directory instead of downloading those weights.
+dataset_repo_id: humjie/bimanual-so101-fold-towel
+policies:
+  act: outputs/train/act_towel/checkpoints/last/pretrained_model
+  smolvla: outputs/train/smolvla_towel/checkpoints/last/pretrained_model
+  pi05: outputs/train/pi05_towel/checkpoints/last/pretrained_model
+reward_config: configs/reward/fold_quality_cpu.yaml
+reward_checkpoint: null
+split_file: null
+synthetic: true
+synthetic_episodes: 6
+frames_per_episode: 4
+image_size: 16
+holdout_fraction: 0.2
+seed: 0
+success_threshold: 0.5
+output_dir: outputs/eval/offline_cpu
+task_prompt: Fold towel

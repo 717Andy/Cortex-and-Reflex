@@ -24,7 +24,9 @@ from shared.labels import (
     FailureMode,
     FoldPhase,
     PhaseSpan,
+    annotation_from_mapping,
 )
+from shared.splits import EpisodeSplit, load_episode_split, save_episode_split
 
 __version__ = "0.1.0"
 
@@ -40,6 +42,7 @@ __all__ = [
     "DatasetInfo",
     "EpisodeAnnotation",
     "EpisodeRecord",
+    "EpisodeSplit",
     "FailureEvent",
     "FailureMode",
     "FeatureSpec",
@@ -47,8 +50,11 @@ __all__ = [
     "PhaseSpan",
     "Severity",
     "ValidationReport",
+    "annotation_from_mapping",
+    "load_episode_split",
     "make_dataset_info",
     "make_episode_record",
+    "save_episode_split",
     "validate_dataset_info",
     "validate_feature_stats",
 ]

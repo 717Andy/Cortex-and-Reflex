@@ -1,0 +1,31 @@
+# Distillation student in the 50-150M band. Point teacher_checkpoint at a
+# fine-tuned pi0.5 or SmolVLA mock/export (config.json mock: true, or actions.pt).
+# Inference budget: 30 Hz and under 6 GB. bench --strict checks both on GPU.
+dataset_repo_id: humjie/bimanual-so101-fold-towel
+task_prompt: Fold towel
+teacher_kind: checkpoint
+teacher_checkpoint: outputs/train/pi05_towel/checkpoints/last/pretrained_model
+device: cuda
+seed: 1000
+steps: 100000
+batch_size: 8
+learning_rate: 0.0001
+kd_weight: 1.0
+gt_weight: 0.5
+save_freq: 2000
+resume: auto
+output_dir: outputs/distill/student_towel
+student:
+  image_size: 64
+  patch_size: 16
+  dim_model: 768
+  n_heads: 12
+  n_layers: 10
+  dim_feedforward: 3072
+  chunk_size: 50
+  dropout: 0.1
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top
+action_dim: 12

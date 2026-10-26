@@ -1,0 +1,31 @@
+# SigLIP 2 fold-quality reward model. Train it on Cortex VLM labels.
+# annotations is the jsonl from `cortex.cli label`. images_dir holds
+# {episode}/{observation.images.left|right|top}/{frame:06d}.png
+# On a 24 GB GPU, drop batch_size to 4 if the frozen SigLIP tower still OOMs.
+encoder: siglip2
+siglip_model: google/siglip2-base-patch16-224
+freeze_encoder: true
+image_size: 224
+embed_dim: 768
+device: cuda
+seed: 0
+steps: 5000
+batch_size: 8
+episodes: 8
+frames_per_episode: 8
+eval_fraction: 0.2
+learning_rate: 0.0001
+weight_decay: 0.0
+success_threshold: 0.5
+calibration_bins: 10
+resume: auto
+save_freq: 500
+output_dir: outputs/reward/fold_quality
+synthetic: false
+annotations: outputs/labels/annotations.jsonl
+images_dir: outputs/reward_images
+allow_missing_images: false
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top

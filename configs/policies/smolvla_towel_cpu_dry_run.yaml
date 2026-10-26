@@ -1,0 +1,58 @@
+# One synthetic step of a 12-DoF linear stand-in. Does not download SmolVLM.
+# Same checkpoint layout as a real run, including the task prompt.
+policy_type: smolvla
+dataset_repo_id: humjie/bimanual-so101-fold-towel
+dataset_root: null
+revision: null
+task_prompt: Fold towel
+job_name: smolvla_towel_cpu_dry_run
+output_dir: outputs/train/smolvla_towel_cpu_dry_run
+device: cpu
+dry_run: true
+seed: 0
+batch_size: 2
+steps: 1
+num_workers: 0
+log_freq: 1
+save_freq: 1
+save_checkpoint: true
+resume: auto
+push_to_hub: false
+episodes_file: null
+episodes_split: train
+wandb:
+  enable: false
+  project: cortex-reflex
+  entity: null
+  mode: null
+  run_id: null
+policy:
+  pretrained_path: lerobot/smolvla_base
+  freeze_vision_encoder: false
+  train_expert_only: false
+  train_state_proj: true
+  load_vlm_weights: true
+  chunk_size: 50
+  n_action_steps: 50
+  empty_cameras: 0
+  num_steps: 10
+  num_inference_steps: 10
+  pad_language_to: max_length
+  prefix_length: 0
+  num_expert_layers: 0
+  optimizer_lr: 0.0001
+  optimizer_weight_decay: 1.0e-10
+  scheduler_warmup_steps: 1
+  scheduler_decay_steps: 1
+  scheduler_decay_lr: 2.5e-6
+  dtype: float32
+  gradient_checkpointing: false
+  paligemma_variant: gemma_2b
+  action_expert_variant: gemma_300m
+  compile_model: false
+  use_amp: false
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top
+action_dim: 12

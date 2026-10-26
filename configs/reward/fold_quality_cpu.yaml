@@ -1,0 +1,30 @@
+# Tiny fold-quality reward model for CI. The encoder is a stand-in for SigLIP 2
+# so this run does not download weights. Success episodes are bright and failure
+# episodes are dark, which is enough to exercise AUROC and calibration.
+encoder: tiny
+siglip_model: google/siglip2-base-patch16-224
+freeze_encoder: true
+image_size: 16
+embed_dim: 16
+device: cpu
+seed: 0
+steps: 2
+batch_size: 4
+episodes: 8
+frames_per_episode: 2
+eval_fraction: 0.25
+learning_rate: 0.01
+weight_decay: 0.0
+success_threshold: 0.5
+calibration_bins: 5
+resume: auto
+save_freq: 2
+output_dir: outputs/reward/fold_quality_cpu
+synthetic: true
+annotations: null
+images_dir: null
+allow_missing_images: false
+cameras:
+  - observation.images.left
+  - observation.images.right
+  - observation.images.top
