@@ -6,10 +6,12 @@ from cortex.labeling import FoldLabeler, MinerConfig, StubLabeler
 from cortex.pipeline import LabelingRun, run_labeling
 from cortex.queue import DataSelectionQueue
 from cortex.sources import EpisodeSource, InMemoryEpisodeSource
+from cortex.vlm import BackendVlmLabeler, VlmLabeler, make_vlm_labeler
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "BackendVlmLabeler",
     "Dashboard",
     "DataSelectionQueue",
     "EpisodeSource",
@@ -19,8 +21,10 @@ __all__ = [
     "LoadedDataset",
     "MinerConfig",
     "StubLabeler",
+    "VlmLabeler",
     "build_dashboard",
     "load_bimanual_dataset",
+    "make_vlm_labeler",
     "render_dashboard",
     "run_labeling",
 ]

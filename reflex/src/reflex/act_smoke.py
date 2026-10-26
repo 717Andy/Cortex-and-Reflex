@@ -53,21 +53,26 @@ class ActSmokeResult:
     device: str
 
 
-def run_act_smoke(output_dir: Path, config: ActSmokeConfig | None = None) -> ActSmokeResult:
-    """Train ``config.steps`` of ACT and write a local checkpoint."""
+def limit_torch_threads() -> None:
+    """Keep a CPU smoke step from grabbing every core on a shared runner."""
+    import torch
+
+    threads = os.cpu_count() or 1
+    torch.set_num_threads(min(4, threads))
+
+
+def build_smoke_policy(config: ActSmokeConfig) -> tuple[Any, Any]:
+    """Return a tiny CPU ``(policy, optimizer)`` pair for ``config``."""
     import torch
     from lerobot.configs.types import FeatureType
     from lerobot.policies.act.configuration_act import ACTConfig
     from lerobot.policies.act.modeling_act import ACTPolicy
     from lerobot.utils.feature_utils import dataset_to_policy_features
 
-    resolved = config or ActSmokeConfig()
-    torch.manual_seed(resolved.seed)
-    threads = os.cpu_count() or 1
-    torch.set_num_threads(min(4, threads))
-
+    limit_torch_threads()
+    torch.manual_seed(config.seed)
     features = lerobot_feature_dict(
-        image_shape=(resolved.image_height, resolved.image_width, 3),
+        image_shape=(config.image_height, config.image_width, 3),
     )
     policy_features = dataset_to_policy_features(features)
     output_features = {
@@ -81,47 +86,31 @@ def run_act_smoke(output_dir: Path, config: ActSmokeConfig | None = None) -> Act
     cfg = ACTConfig(
         input_features=input_features,
         output_features=output_features,
-        chunk_size=resolved.chunk_size,
-        n_action_steps=resolved.chunk_size,
-        dim_model=resolved.dim_model,
-        n_heads=resolved.n_heads,
-        dim_feedforward=resolved.dim_feedforward,
-        n_encoder_layers=resolved.n_encoder_layers,
-        n_decoder_layers=resolved.n_decoder_layers,
-        use_vae=resolved.use_vae,
+        chunk_size=config.chunk_size,
+        n_action_steps=config.chunk_size,
+        dim_model=config.dim_model,
+        n_heads=config.n_heads,
+        dim_feedforward=config.dim_feedforward,
+        n_encoder_layers=config.n_encoder_layers,
+        n_decoder_layers=config.n_decoder_layers,
+        use_vae=config.use_vae,
         pretrained_backbone_weights=None,
         vision_backbone="resnet18",
-        device=resolved.device,
+        device=config.device,
         push_to_hub=False,
     )
     policy = ACTPolicy(cfg)
     policy.train()
-    policy.to(resolved.device)
+    policy.to(config.device)
     optimizer = cfg.get_optimizer_preset().build(policy.parameters())
+    return policy, optimizer
 
-    losses: list[float] = []
-    last_batch: dict[str, Any] | None = None
-    for _ in range(resolved.steps):
-        batch = _synthetic_batch(resolved)
-        last_batch = batch
-        loss, _loss_dict = policy.forward(batch)
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad(set_to_none=True)
-        losses.append(float(loss.detach().cpu()))
 
-    if last_batch is None:
-        raise RuntimeError("smoke run produced no batch")
-    policy.eval()
-    policy.reset()
-    observation = {key: last_batch[key][:1] for key in (*CAMERA_FEATURE_KEYS, "observation.state")}
-    action = policy.select_action(observation)
-    action_shape = tuple(int(dim) for dim in action.shape)
-    if action_shape[-1] != ACTION_DIM:
-        raise RuntimeError(
-            f"ACT returned action shape {action_shape}, expected (..., {ACTION_DIM})"
-        )
-
+def run_act_smoke(output_dir: Path, config: ActSmokeConfig | None = None) -> ActSmokeResult:
+    """Train ``config.steps`` of ACT and write a local checkpoint."""
+    resolved = config or ActSmokeConfig()
+    policy, optimizer = build_smoke_policy(resolved)
+    losses, action_shape = train_smoke_steps(policy, optimizer, resolved)
     output_dir.mkdir(parents=True, exist_ok=True)
     policy.save_pretrained(output_dir)
     return ActSmokeResult(
@@ -133,7 +122,8 @@ def run_act_smoke(output_dir: Path, config: ActSmokeConfig | None = None) -> Act
     )
 
 
-def _synthetic_batch(config: ActSmokeConfig) -> dict[str, Any]:
+def synthetic_act_batch(config: ActSmokeConfig) -> dict[str, Any]:
+    """One random bimanual batch: 12-DoF state/action and the three contract cameras."""
     import torch
 
     generator = torch.Generator(device="cpu")
@@ -154,3 +144,30 @@ def _synthetic_batch(config: ActSmokeConfig) -> dict[str, Any]:
             generator=generator,
         )
     return batch
+
+
+def train_smoke_steps(
+    policy: Any, optimizer: Any, config: ActSmokeConfig
+) -> tuple[list[float], tuple[int, ...]]:
+    losses: list[float] = []
+    last_batch: dict[str, Any] | None = None
+    for _ in range(config.steps):
+        batch = synthetic_act_batch(config)
+        last_batch = batch
+        loss, _loss_dict = policy.forward(batch)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad(set_to_none=True)
+        losses.append(float(loss.detach().cpu()))
+    if last_batch is None:
+        raise RuntimeError("smoke run produced no batch")
+    policy.eval()
+    policy.reset()
+    observation = {key: last_batch[key][:1] for key in (*CAMERA_FEATURE_KEYS, "observation.state")}
+    action = policy.select_action(observation)
+    action_shape = tuple(int(dim) for dim in action.shape)
+    if action_shape[-1] != ACTION_DIM:
+        raise RuntimeError(
+            f"ACT returned action shape {action_shape}, expected (..., {ACTION_DIM})"
+        )
+    return losses, action_shape

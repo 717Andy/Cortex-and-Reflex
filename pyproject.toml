@@ -63,6 +63,8 @@ module = [
     "pyarrow.*",
     "torch.*",
     "torchvision.*",
+    "transformers",
+    "transformers.*",
     "yaml.*",
 ]
 ignore_missing_imports = true
@@ -73,4 +75,5 @@ addopts = "-ra"
 markers = [
     "integration: downloads public dataset metadata from the Hugging Face Hub",
     "smoke: runs one CPU ACT training step through LeRobot",
+    "slow: optional real VLM download; skipped unless CORTEX_RUN_SLOW_VLM=1",
 ]

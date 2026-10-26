@@ -12,6 +12,38 @@ def test_label_demo_exits_clean() -> None:
     assert cortex_main(["label-demo"]) == 0
 
 
+def test_label_fake_backend_writes_the_queue(tmp_path: Path) -> None:
+    from tests.support import write_local_dataset
+
+    dataset = tmp_path / "dataset"
+    write_local_dataset(dataset, [12])
+    output = tmp_path / "labels"
+    code = cortex_main(
+        [
+            "label",
+            "--dataset",
+            "local/towel",
+            "--root",
+            str(dataset),
+            "--limit",
+            "1",
+            "--backend",
+            "fake",
+            "--output",
+            str(output),
+            "--response-cache",
+            str(tmp_path / "cache"),
+        ]
+    )
+    assert code == 0
+    text = (output / "annotations.jsonl").read_text()
+    assert '"phase": "fold1"' in text
+    assert "success" in text
+    dashboard = (output / "dashboard.txt").read_text()
+    assert "uncertain_phase: 1" in dashboard
+    assert "failure: 1" in dashboard
+
+
 def test_local_ingest_cli(tmp_path: Path) -> None:
     from tests.support import write_local_dataset
 

@@ -7,6 +7,25 @@ from shared.episodes import make_episode_record
 from shared.labels import EpisodeAnnotation, FailureEvent, FailureMode, FoldPhase, PhaseSpan
 
 
+def test_unsuccessful_vlm_label_is_queued() -> None:
+    annotation = EpisodeAnnotation(
+        episode_index=1,
+        labeler="vlm:fake",
+        phases=(PhaseSpan(FoldPhase.FOLD, 0, 2, 0.95),),
+        failures=(),
+        success=False,
+        quality_notes="towel stayed open",
+    )
+    queue = DataSelectionQueue()
+    enqueue_annotation(queue, annotation)
+    item = queue.pop_next()
+    assert item is not None
+    assert item.reason == SelectionReason.FAILURE
+    assert item.detail == "success=false: towel stayed open"
+    queue.mark(item, "reviewed")
+    assert queue.pop_next() is None
+
+
 def test_failures_outrank_uncertain_phases() -> None:
     annotation = EpisodeAnnotation(
         episode_index=4,

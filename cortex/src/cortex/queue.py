@@ -81,13 +81,24 @@ def enqueue_annotation(
     *,
     uncertain_below: float = 0.5,
 ) -> None:
-    """Queue each failure, and queue low-confidence phases for review."""
+    """Queue each failure, an unsuccessful VLM judgment, and low-confidence phases."""
     for event in annotation.failures:
         queue.enqueue(
             annotation.episode_index,
             priority=100,
             reason=SelectionReason.FAILURE,
             detail=event.mode.value,
+        )
+    if annotation.success is False:
+        note = annotation.quality_notes.strip()
+        detail = "success=false" if not note else f"success=false: {note}"
+        if len(detail) > 200:
+            detail = detail[:197] + "..."
+        queue.enqueue(
+            annotation.episode_index,
+            priority=100,
+            reason=SelectionReason.FAILURE,
+            detail=detail,
         )
     if annotation.min_phase_confidence < uncertain_below:
         queue.enqueue(
