@@ -1,0 +1,76 @@
+[project]
+name = "cortex-and-reflex"
+version = "0.1.0"
+description = "Bimanual SO-101 cloth-folding monorepo: Cortex data engine and Reflex policies."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "shared",
+    "cortex",
+    "reflex",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["shared", "cortex", "reflex"]
+
+[tool.uv.sources]
+shared = { workspace = true }
+cortex = { workspace = true }
+reflex = { workspace = true }
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19",
+    "pytest>=8.1",
+    "ruff>=0.14",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["shared/src", "cortex/src", "reflex/src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["shared", "cortex", "reflex"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = ["shared/src", "cortex/src", "reflex/src"]
+files = ["shared/src/shared", "cortex/src/cortex", "reflex/src/reflex"]
+explicit_package_bases = true
+namespace_packages = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "huggingface_hub.*",
+    "lerobot.*",
+    "pyarrow.*",
+    "torch.*",
+    "torchvision.*",
+    "yaml.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "integration: downloads public dataset metadata from the Hugging Face Hub",
+    "smoke: runs one CPU ACT training step through LeRobot",
+]

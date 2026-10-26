@@ -1,0 +1,11 @@
+# Public bimanual SO-101 towel fold used until the local station is recording.
+# Joint order and camera keys are the LeRobot v3 contract in shared.contract.
+repo_id: humjie/bimanual-so101-fold-towel
+task: towel
+fps: 30
+robot_type: bi_so101_follower
+action_dim: 12
+cameras:
+  left_wrist: observation.images.left
+  right_wrist: observation.images.right
+  overhead: observation.images.top

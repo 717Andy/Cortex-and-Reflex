@@ -1,0 +1,22 @@
+[project]
+name = "cortex"
+version = "0.1.0"
+description = "Cortex data engine: ingest, phase labeling, failure mining, and the selection queue."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "shared",
+    "huggingface-hub>=1.6,<2",
+    "pyarrow>=21,<30",
+    "pyyaml>=6,<7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+shared = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cortex"]

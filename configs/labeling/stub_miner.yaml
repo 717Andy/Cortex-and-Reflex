@@ -1,0 +1,11 @@
+# Kinematic placeholder thresholds, in the raw joint `.pos` units LeRobot stores.
+# The stub labeler is a stand-in for the VLM labeler in cortex.vlm.
+gripper_motion_min: 5.0
+oscillation_flips: 4
+align_delta_min: 20.0
+elbow_still_max: 3.0
+lift_min: 10.0
+spike_min: 25.0
+timeout_frames: 900
+drop_delta: 5.0
+stub_confidence: 0.25
